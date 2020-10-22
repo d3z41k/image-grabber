@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/chromedp/chromedp"
 	"github.com/dustin/go-humanize"
 	"github.com/gocolly/colly"
+	"golang.org/x/net/context"
+
+	//"github.com/gocolly/colly"
 	"io"
 	"net/http"
 	"net/url"
@@ -45,6 +49,7 @@ func main() {
 
 	url := os.Args[1]
 	dir := os.Args[2]
+	host := getHostName(url)
 
 	// Create folder if it not exist
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -53,23 +58,84 @@ func main() {
 
 	c := colly.NewCollector()
 
-	// Find and visit all links
-	c.OnHTML("img[src]", func(e *colly.HTMLElement) {
-		url := e.Attr("src")
-		fmt.Println("image src: ", url)
+	var links []string
 
-		err := DownloadFile(url, dir)
-		if err != nil {
-			panic(err)
+	// Find and visit all links
+	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+		link := e.Attr("href")
+		//fmt.Println("image link: ", link)
+
+		if strings.Contains(link, "/photo/") {
+			links = append(links, link)
 		}
+
+		//err := DownloadFile(url, dir)
+		//if err != nil {
+		//	panic(err)
+		//}
 
 	})
 
-	//c.OnRequest(func(r *colly.Request) {
-	//	fmt.Println("Visiting", r.URL)
+	//// Find and visit all links
+	//c.OnHTML("img[src]", func(e *colly.HTMLElement) {
+	//	url := e.Attr("src")
+	//	fmt.Println("image src: ", url)
+	//
+	//	links = append(links, url)
+	//
+	//	//err := DownloadFile(url, dir)
+	//	//if err != nil {
+	//	//	panic(err)
+	//	//}
+	//
 	//})
 
 	c.Visit(url)
+
+	for _, link := range links {
+
+		//\/sfwalbum.com/photo/62081820
+
+		fmt.Println(host + link)
+
+		ctx, cancel := chromedp.NewContext(context.Background())
+		defer cancel()
+
+		var img string
+		var example string
+		if err := chromedp.Run(ctx,
+			chromedp.Navigate(host+link),
+			//chromedp.WaitVisible(`body > footer`),
+			chromedp.Click("#downloadPhoto", chromedp.NodeVisible),
+			//chromedp.OuterHTML("img", &img),
+			chromedp.Value("html", &example),
+		); err != nil {
+			panic(err)
+		}
+
+		fmt.Println(img)
+
+		fmt.Println(example)
+
+		//c.OnHTML("div[class]", func(e *colly.HTMLElement) {
+		//	//src := e.Attr("data-magnify-src")
+		//	src := e
+		//
+		//	fmt.Println("image src: ", src)
+		//
+		//	//err := DownloadFile(url, dir)
+		//	//if err != nil {
+		//	//	panic(err)
+		//	//}
+		//
+		//})
+
+		//c.Visit(host + link)
+
+		break
+	}
+
+	//fmt.Printf("links: %v", links)
 
 	fmt.Println("Grabbing completed!")
 }
@@ -126,4 +192,14 @@ func getFileName(fullUrlFile string) string {
 	segments := strings.Split(path, "/")
 
 	return segments[len(segments)-1]
+}
+
+// getHostName
+func getHostName(fullUrlFile string) string {
+	fileUrl, err := url.Parse(fullUrlFile)
+	if err != nil {
+		panic(err)
+	}
+
+	return fileUrl.Scheme + "://" + fileUrl.Host
 }
