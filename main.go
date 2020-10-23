@@ -87,14 +87,11 @@ func main() {
 	//	//if err != nil {
 	//	//	panic(err)
 	//	//}
-	//
 	//})
 
 	c.Visit(url)
 
 	for _, link := range links {
-
-		//\/sfwalbum.com/photo/62081820
 
 		fmt.Println(host + link)
 
